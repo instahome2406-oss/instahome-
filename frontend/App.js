@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, FlatList, Image, TouchableOpacity, SafeAreaView, Platform, Modal, TextInput, StatusBar } from 'react-native';
 import axios from 'axios';
 
-// ⚠️ WEB MODE (LOCALHOST)
-const API_URL = 'http://localhost:5000'; 
+// Replace localhost with your copied link
+const API_URL = 'https://instahome.onrender.com';
 
 export default function App() {
   const [products, setProducts] = useState([]);

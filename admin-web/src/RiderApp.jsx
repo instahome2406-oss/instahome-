@@ -6,7 +6,7 @@ function RiderApp({ onBack }) {
   const [orders, setOrders] = useState([]);
   
   // ⚠️ Ensure this matches your Server Port
-  const API_URL = 'http://localhost:5000';
+  const API_URL = 'https://instahome.onrender.com';
 
   // Fetch only orders that are ready for pickup
   const fetchOrders = async () => {

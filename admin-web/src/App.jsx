@@ -10,7 +10,7 @@ function App() {
   // --- ADMIN LOGIC ---
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
-  const API_URL = 'http://localhost:5000';
+  const API_URL = 'https://instahome.onrender.com';
 
   const fetchData = async () => {
     try {
