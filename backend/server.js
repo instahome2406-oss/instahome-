@@ -108,7 +108,8 @@ app.post('/update-status', async (req, res) => {
     await Order.findByIdAndUpdate(orderId, { status });
     res.json({ success: true });
 });
-
-server.listen(5000, () => {
-    console.log('🚀 Crypto-Secure Server running on Port 5000');
+// Allow Cloud to set PORT, or use 5000 if on Laptop
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on Port ${PORT}`);
 });
