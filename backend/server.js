@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http'); 
 const { Server } = require("socket.io"); 
-const crypto = require('crypto'); // 🛡️ MILITARY GRADE SECURITY
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -18,20 +18,26 @@ io.on('connection', (socket) => {
     console.log('⚡ User Connected:', socket.id);
 });
 
-// --- DATABASE ---
-const MONGO_URI = "mongodb+srv://admin:admin123@cluster0.puzhmmu.mongodb.net/instahome?retryWrites=true&w=majority";
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('✅ MongoDB Connected!'))
-    .catch(err => console.error(err));
+// --- DATABASE CONNECTION (YOUR REAL CREDENTIALS) ---
+const MONGO_URI = "mongodb+srv://instahome2406_db_user:Madinkwm@cluster0.puzhmmu.mongodb.net/instahome?retryWrites=true&w=majority&appName=Cluster0";
+
+const connectDB = async () => {
+    try {
+        await mongoose.connect(MONGO_URI, {
+            serverSelectionTimeoutMS: 5000, 
+            socketTimeoutMS: 45000,
+        });
+        console.log('✅ MongoDB Connected Successfully!');
+    } catch (err) {
+        console.error('❌ DB Connection Error:', err.message);
+    }
+};
+connectDB();
 
 // --- MODELS ---
-const UserSchema = new mongoose.Schema({
-    phone: String,
-    otp: String, 
-    name: String,
-    address: String
-});
-const User = mongoose.model('User', UserSchema);
+const User = mongoose.model('User', new mongoose.Schema({
+    phone: String, otp: String, name: String, address: String
+}));
 
 const Product = mongoose.model('Product', new mongoose.Schema({
     name: String, price: Number, category: String, image: String, inStock: Boolean
@@ -44,28 +50,21 @@ const Order = mongoose.model('Order', new mongoose.Schema({
 
 // --- ROUTES ---
 
-// 1. THE CRYPTO OTP ENGINE 🛡️
+// 1. CRYPTO OTP LOGIN
 app.post('/login', async (req, res) => {
     const { phone } = req.body;
     
-    // 🛡️ UNPREDICTABLE ENGINE
-    // This does not use Math.random(). It uses system noise (entropy).
-    // It generates a cryptographically strong 4-digit number.
+    // Military-Grade Random Number
     const val = crypto.randomInt(1000, 9999); 
     const shadowOTP = val.toString();
 
     let user = await User.findOne({ phone });
-    if (!user) {
-        user = new User({ phone });
-    }
+    if (!user) { user = new User({ phone }); }
     
-    // Save new OTP (Overwrites old one immediately)
     user.otp = shadowOTP; 
     await user.save();
 
-    console.log(`🔐 Generated Secure OTP for ${phone}: ${shadowOTP}`); // Log for debugging
-
-    // Send hidden response
+    console.log(`🔐 OTP for ${phone}: ${shadowOTP}`);
     res.json({ success: true, secret_code: shadowOTP });
 });
 
@@ -75,7 +74,7 @@ app.post('/verify-otp', async (req, res) => {
     const user = await User.findOne({ phone });
     
     if (user && user.otp === otp) {
-        user.otp = null; // Destroy OTP immediately after use
+        user.otp = null; 
         await user.save();
         res.json({ success: true, user });
     } else {
@@ -93,22 +92,27 @@ app.post('/place-order', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 4. GET PRODUCTS
 app.get('/products', async (req, res) => {
     const products = await Product.find();
     res.json(products);
 });
 
+// 5. GET ORDERS
 app.get('/orders', async (req, res) => {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
 });
 
+// 6. UPDATE STATUS
 app.post('/update-status', async (req, res) => {
     const { orderId, status } = req.body;
     await Order.findByIdAndUpdate(orderId, { status });
+    io.emit('order_update', { type: 'STATUS_UPDATE', data: { _id: orderId, status } });
     res.json({ success: true });
 });
-// Allow Cloud to set PORT, or use 5000 if on Laptop
+
+// START SERVER
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`🚀 Server running on Port ${PORT}`);
