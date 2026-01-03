@@ -10,110 +10,82 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- REAL-TIME SERVER ---
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-io.on('connection', (socket) => {
-    console.log('⚡ User Connected:', socket.id);
-});
-
-// --- DATABASE CONNECTION (YOUR REAL CREDENTIALS) ---
+// YOUR DATABASE
 const MONGO_URI = "mongodb+srv://instahome2406_db_user:Madinkwm@cluster0.puzhmmu.mongodb.net/instahome?retryWrites=true&w=majority&appName=Cluster0";
 
 const connectDB = async () => {
-    try {
-        await mongoose.connect(MONGO_URI, {
-            serverSelectionTimeoutMS: 5000, 
-            socketTimeoutMS: 45000,
-        });
-        console.log('✅ MongoDB Connected Successfully!');
-    } catch (err) {
-        console.error('❌ DB Connection Error:', err.message);
-    }
+    try { await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 }); console.log('✅ DB Connected!'); } 
+    catch (err) { console.error('DB Error', err); }
 };
 connectDB();
 
-// --- MODELS ---
+// --- UPDATED USER MODEL (With Device Lock) ---
 const User = mongoose.model('User', new mongoose.Schema({
-    phone: String, otp: String, name: String, address: String
+    phone: String,
+    deviceId: String, // 🔐 This is the Lock
+    otp: String, 
+    name: String, address: String
 }));
 
-const Product = mongoose.model('Product', new mongoose.Schema({
-    name: String, price: Number, category: String, image: String, inStock: Boolean
-}));
-
-const Order = mongoose.model('Order', new mongoose.Schema({
-    customerName: String, address: String, items: Array, totalAmount: Number, 
-    status: { type: String, default: "Pending" }, createdAt: { type: Date, default: Date.now }
-}));
+const Product = mongoose.model('Product', new mongoose.Schema({ name: String, price: Number, category: String, image: String, inStock: Boolean }));
+const Order = mongoose.model('Order', new mongoose.Schema({ customerName: String, address: String, items: Array, totalAmount: Number, status: { type: String, default: "Pending" }, createdAt: { type: Date, default: Date.now } }));
 
 // --- ROUTES ---
 
-// 1. CRYPTO OTP LOGIN
+// 1. DEVICE LOCKED LOGIN
 app.post('/login', async (req, res) => {
-    const { phone } = req.body;
+    const { phone, deviceId } = req.body;
     
-    // Military-Grade Random Number
+    // Crypto OTP
     const val = crypto.randomInt(1000, 9999); 
     const shadowOTP = val.toString();
 
     let user = await User.findOne({ phone });
-    if (!user) { user = new User({ phone }); }
+
+    if (!user) {
+        // NEW USER: Create account and LOCK it to this device
+        user = new User({ phone, deviceId });
+        console.log(`🔒 New User ${phone} locked to device ${deviceId}`);
+    } else {
+        // EXISTING USER: Check if the device matches!
+        if (user.deviceId && user.deviceId !== deviceId) {
+            console.log(`⛔ SECURITY ALERT: Login attempt for ${phone} from WRONG device.`);
+            // REJECT THE LOGIN
+            return res.status(403).json({ success: false, error: "This number is registered on a different phone." });
+        }
+        
+        // If device matches (or wasn't set), update it and proceed
+        user.deviceId = deviceId;
+    }
     
+    // Save OTP
     user.otp = shadowOTP; 
     await user.save();
 
-    console.log(`🔐 OTP for ${phone}: ${shadowOTP}`);
+    // Send code
     res.json({ success: true, secret_code: shadowOTP });
 });
 
-// 2. VERIFY OTP
 app.post('/verify-otp', async (req, res) => {
     const { phone, otp } = req.body;
     const user = await User.findOne({ phone });
-    
     if (user && user.otp === otp) {
         user.otp = null; 
         await user.save();
         res.json({ success: true, user });
-    } else {
-        res.status(400).json({ error: "Invalid Code" });
-    }
+    } else { res.status(400).json({ error: "Invalid Code" }); }
 });
 
-// 3. PLACE ORDER
 app.post('/place-order', async (req, res) => {
-    try {
-        const newOrder = new Order(req.body);
-        await newOrder.save();
-        io.emit('order_update', { type: 'NEW_ORDER', data: newOrder });
-        res.status(201).json({ message: "Order Placed!" });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    const newOrder = new Order(req.body); await newOrder.save();
+    io.emit('order_update', { type: 'NEW_ORDER', data: newOrder });
+    res.json({ message: "Order Placed!" });
 });
+app.get('/products', async (req, res) => { const p = await Product.find(); res.json(p); });
+app.get('/orders', async (req, res) => { const o = await Order.find().sort({ createdAt: -1 }); res.json(o); });
 
-// 4. GET PRODUCTS
-app.get('/products', async (req, res) => {
-    const products = await Product.find();
-    res.json(products);
-});
-
-// 5. GET ORDERS
-app.get('/orders', async (req, res) => {
-    const orders = await Order.find().sort({ createdAt: -1 });
-    res.json(orders);
-});
-
-// 6. UPDATE STATUS
-app.post('/update-status', async (req, res) => {
-    const { orderId, status } = req.body;
-    await Order.findByIdAndUpdate(orderId, { status });
-    io.emit('order_update', { type: 'STATUS_UPDATE', data: { _id: orderId, status } });
-    res.json({ success: true });
-});
-
-// START SERVER
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-    console.log(`🚀 Server running on Port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Security Server on Port ${PORT}`));
