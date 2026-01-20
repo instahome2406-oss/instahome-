@@ -3,42 +3,41 @@ import axios from 'axios';
 import RiderApp from './RiderApp';
 import './App.css';
 
+// ⚠️ YOUR CLOUD SERVER
 const API_URL = 'https://instahome.onrender.com'; 
 
 function App() {
   const [view, setView] = useState('admin'); 
   const [orders, setOrders] = useState([]);
 
+  // Auto-Refresh every 2 seconds (Safe & Reliable)
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 3000); // Simple polling (Fail-safe)
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  const fetchData = async () => {
+  const fetchOrders = async () => {
     try {
-      const res = await axios.get(`${APIIf the **Vercel Deployment Failed**, it means there is an error in the code that_URL}/orders`);
+      const res = await axios.get(`${API_URL}/orders`);
       setOrders(res.data);
-    } catch(e) {}
+    } catch(e) { console.error("Loading..."); }
   };
 
   const updateStatus = async (id, status) => {
     try {
-        await axios.post(`${API_URL Vercel's build system didn't like. Usually, it's a small typo or a missing import.}/update-status`, { orderId: id, status });
-        fetchData();
+        // Optimistic Update (Change UI immediately)
+        setOrders(orders.map(o => o._id === id ? { ...o, status: status } : o));
+        
+        await axios.post(`${API_URL}/update-status`, { orderId: id, status });
+        fetchOrders(); 
     } catch (error) {
-        alert("Action
-
-### **How to find the Error (In 30 seconds)**
-We need to know *why* it failed.
-
-1.   Failed. Check Internet.");
+        alert("Action Failed. Check Connection.");
     }
   };
 
-  if (view === 'rider') return <RiderApp onBack={()Go to your **[Vercel Dashboard](https://vercel.com/dashboard)**.
-2.  Click on **`instahome`** project.
-3.  Click on the **"Deployments"** tab. => setView('admin')} />;
+  // Switch to Rider Mode
+  if (view === 'rider') return <RiderApp onBack={() => setView('admin')} />;
 
   return (
     <div className="dashboard-container">
@@ -48,28 +47,37 @@ We need to know *why* it failed.
       </header>
 
       <div className="content">
-        
-4.  You will see a **Red "Failed"** status on the top one.
-5.  **<h2>Active Orders ({orders.length})</h2>
+        <h2>Active Orders ({orders.length})</h2>
         <div className="orders-grid">
           {orders.map(order => (
             <div key={order._id} className="card">
-                <h3>#{order._id.slice(-4Click that Red Status.**
-6.  It will show a black log screen. Scroll down to look for **Red Text**.
-
-**Common)}</h3>
-                <span className="badge">{order.status}</span>
-                <p><strong>👤 {order.customerName}</strong></p>
-                <p>💰 ₹{order.totalAmount} ({order.paymentMode})</p>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'10px'}}>
+                    <h3>#{order._id.slice(-4)}</h3>
+                    <span style={{
+                        padding:'5px 10px', borderRadius:'5px', fontWeight:'bold', fontSize:'12px',
+                        backgroundColor: order.status==='Pending'?'#FFF3E0': order.status==='Delivered'?'#E8F5E9':'#E3F2FD',
+                        color: order.status==='Pending'?'#E65100': order.status==='Delivered'?'#2E7D32':'#1565C0'
+                    }}>{order.status}</span>
+                </div>
                 
-                { Reason:**
-It often says: **`Module not found: Can't resolve 'socket.io-client'`**.
-order.status === 'Pending' && (
-                    <button onClick={() => updateStatus(order._id, 'Accepted')}*(This happens if we installed the tool on our laptop but forgot to tell Vercel about it).*
-
----
-
-### ** style={{background:'#3b82f6'}}>Accept Order</button>
+                <p><strong>👤 {order.customerName}</strong></p>
+                <p>📍 {order.address}</p>
+                <p>📞 {order.phone || "No Phone"}</p>
+                <div style={{borderTop:'1px solid #eee', margin:'10px 0', paddingTop:'10px'}}>
+                    <p style={{fontWeight:'bold'}}>Items:</p>
+                    {order.items.map((item, i) => (
+                        <div key={i} style={{display:'flex', justifyContent:'space-between', fontSize:'14px', color:'#555'}}>
+                            <span>{item.qty} x {item.name}</span>
+                            <span>₹{item.price * item.qty}</span>
+                        </div>
+                    ))}
+                </div>
+                <p style={{textAlign:'right', fontSize:'18px', fontWeight:'bold'}}>Total: ₹{order.totalAmount}</p>
+                
+                {order.status === 'Pending' && (
+                    <button onClick={() => updateStatus(order._id, 'Accepted')} style={{background:'#4F46E5'}}>
+                        Accept Order
+                    </button>
                 )}
             </div>
           ))}
