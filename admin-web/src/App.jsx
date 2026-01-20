@@ -1,52 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client';
 import RiderApp from './RiderApp';
 import './App.css';
 
-// ⚠️ ENSURE THIS IS HTTPS (Not HTTP)
 const API_URL = 'https://instahome.onrender.com'; 
 
 function App() {
   const [view, setView] = useState('admin'); 
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
-    const socket = io(API_URL);
-    socket.on('order_update', () => fetchData());
-    return () => socket.disconnect();
+    const interval = setInterval(fetchData, 3000); // Simple polling (Fail-safe)
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
     try {
-      const res = await axios.get(`${API_URL}/orders`);
+      const res = await axios.get(`${APIIf the **Vercel Deployment Failed**, it means there is an error in the code that_URL}/orders`);
       setOrders(res.data);
-    } catch(e) { console.error("Fetch Error:", e); }
+    } catch(e) {}
   };
 
-  const updateStatus = async (id, st) => {
-    setLoading(true);
+  const updateStatus = async (id, status) => {
     try {
-        console.log(`Updating ${id} to ${st}...`);
-        const res = await axios.post(`${API_URL}/update-status`, { orderId: id, status: st });
-        
-        if (res.data.success) {
-            // Success! Refresh data
-            await fetchData();
-        } else {
-            alert("Server said No: " + JSON.stringify(res.data));
-        }
+        await axios.post(`${API_URL Vercel's build system didn't like. Usually, it's a small typo or a missing import.}/update-status`, { orderId: id, status });
+        fetchData();
     } catch (error) {
-        // 🚨 THIS WILL TELL US THE PROBLEM
-        alert("Update Failed: " + error.message);
-        console.error(error);
+        alert("Action
+
+### **How to find the Error (In 30 seconds)**
+We need to know *why* it failed.
+
+1.   Failed. Check Internet.");
     }
-    setLoading(false);
   };
 
-  if (view === 'rider') return <RiderApp onBack={() => setView('admin')} />;
+  if (view === 'rider') return <RiderApp onBack={()Go to your **[Vercel Dashboard](https://vercel.com/dashboard)**.
+2.  Click on **`instahome`** project.
+3.  Click on the **"Deployments"** tab. => setView('admin')} />;
 
   return (
     <div className="dashboard-container">
@@ -56,26 +48,28 @@ function App() {
       </header>
 
       <div className="content">
-        <h2>Active Orders ({orders.length})</h2>
+        
+4.  You will see a **Red "Failed"** status on the top one.
+5.  **<h2>Active Orders ({orders.length})</h2>
         <div className="orders-grid">
           {orders.map(order => (
             <div key={order._id} className="card">
-                <div style={{display:'flex', justifyContent:'space-between'}}>
-                    <h3>#{order._id.slice(-4)}</h3>
-                    <span style={{
-                        padding:'4px 8px', borderRadius:'4px', fontWeight:'bold', fontSize:'12px',
-                        background: order.status==='Pending'?'#fff7ed': order.status==='Delivered'?'#dcfce7':'#e0f2fe',
-                        color: order.status==='Pending'?'#c2410c': order.status==='Delivered'?'#166534':'#0369a1'
-                    }}>{order.status}</span>
-                </div>
+                <h3>#{order._id.slice(-4Click that Red Status.**
+6.  It will show a black log screen. Scroll down to look for **Red Text**.
+
+**Common)}</h3>
+                <span className="badge">{order.status}</span>
                 <p><strong>👤 {order.customerName}</strong></p>
-                <p>📍 {order.address}</p>
-                <p>💰 ₹{order.totalAmount}</p>
+                <p>💰 ₹{order.totalAmount} ({order.paymentMode})</p>
                 
-                {order.status === 'Pending' && (
-                    <button onClick={() => updateStatus(order._id, 'Accepted')} style={{background:'#3b82f6'}}>
-                        {loading ? "..." : "Accept Order"}
-                    </button>
+                { Reason:**
+It often says: **`Module not found: Can't resolve 'socket.io-client'`**.
+order.status === 'Pending' && (
+                    <button onClick={() => updateStatus(order._id, 'Accepted')}*(This happens if we installed the tool on our laptop but forgot to tell Vercel about it).*
+
+---
+
+### ** style={{background:'#3b82f6'}}>Accept Order</button>
                 )}
             </div>
           ))}
