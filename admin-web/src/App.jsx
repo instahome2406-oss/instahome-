@@ -4,43 +4,48 @@ import io from 'socket.io-client';
 import RiderApp from './RiderApp';
 import './App.css';
 
-// ⚠️ FORCE CLOUD LINK
+// ⚠️ ENSURE THIS IS HTTPS (Not HTTP)
 const API_URL = 'https://instahome.onrender.com'; 
 
 function App() {
   const [view, setView] = useState('admin'); 
   const [orders, setOrders] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // --- LIVE DATA ENGINE ---
   useEffect(() => {
     fetchData();
-    
-    // Connect to Real-Time Updates
     const socket = io(API_URL);
-    socket.on('order_update', () => {
-        console.log("⚡ New Update!");
-        fetchData(); // Refresh instantly
-    });
-
+    socket.on('order_update', () => fetchData());
     return () => socket.disconnect();
   }, []);
 
   const fetchData = async () => {
     try {
-      const o = await axios.get(`${API_URL}/orders`);
-      setOrders(o.data);
-      const p = await axios.get(`${API_URL}/products`);
-      setProducts(p.data);
-    } catch(e) { console.error("Server Sleeping?"); }
+      const res = await axios.get(`${API_URL}/orders`);
+      setOrders(res.data);
+    } catch(e) { console.error("Fetch Error:", e); }
   };
 
   const updateStatus = async (id, st) => {
-    await axios.post(`${API_URL}/update-status`, { orderId: id, status: st });
-    fetchData(); // Optimistic update
+    setLoading(true);
+    try {
+        console.log(`Updating ${id} to ${st}...`);
+        const res = await axios.post(`${API_URL}/update-status`, { orderId: id, status: st });
+        
+        if (res.data.success) {
+            // Success! Refresh data
+            await fetchData();
+        } else {
+            alert("Server said No: " + JSON.stringify(res.data));
+        }
+    } catch (error) {
+        // 🚨 THIS WILL TELL US THE PROBLEM
+        alert("Update Failed: " + error.message);
+        console.error(error);
+    }
+    setLoading(false);
   };
 
-  // --- RIDER SWITCH ---
   if (view === 'rider') return <RiderApp onBack={() => setView('admin')} />;
 
   return (
@@ -65,19 +70,12 @@ function App() {
                 </div>
                 <p><strong>👤 {order.customerName}</strong></p>
                 <p>📍 {order.address}</p>
-                <p>💰 ₹{order.totalAmount} ({order.paymentMode})</p>
+                <p>💰 ₹{order.totalAmount}</p>
                 
-                <div style={{margin:'10px 0', borderTop:'1px solid #eee', paddingTop:'10px'}}>
-                    {order.items.map((i, idx) => (
-                        <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:'13px', color:'#666'}}>
-                            <span>{i.qty} x {i.name}</span>
-                            <span>₹{i.price * i.qty}</span>
-                        </div>
-                    ))}
-                </div>
-
                 {order.status === 'Pending' && (
-                    <button onClick={() => updateStatus(order._id, 'Accepted')} style={{background:'#3b82f6'}}>Accept Order</button>
+                    <button onClick={() => updateStatus(order._id, 'Accepted')} style={{background:'#3b82f6'}}>
+                        {loading ? "..." : "Accept Order"}
+                    </button>
                 )}
             </div>
           ))}

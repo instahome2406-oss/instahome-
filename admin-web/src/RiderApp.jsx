@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// ⚠️ FORCE CLOUD LINK
 const API_URL = 'https://instahome.onrender.com';
 
 function RiderApp({ onBack }) {
@@ -10,7 +9,6 @@ function RiderApp({ onBack }) {
   const fetchOrders = async () => {
     try {
       const res = await axios.get(`${API_URL}/orders`);
-      // Riders see 'Accepted' (to Pickup) or 'Out for Delivery' (to Complete)
       const active = res.data.filter(o => o.status === 'Accepted' || o.status === 'Out for Delivery');
       setOrders(active);
     } catch (err) {}
@@ -18,13 +16,17 @@ function RiderApp({ onBack }) {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 5000); // Poll every 5s
+    const interval = setInterval(fetchOrders, 5000); 
     return () => clearInterval(interval);
   }, []);
 
   const updateStatus = async (id, status) => {
-    await axios.post(`${API_URL}/update-status`, { orderId: id, status });
-    fetchOrders();
+    try {
+        await axios.post(`${API_URL}/update-status`, { orderId: id, status });
+        fetchOrders();
+    } catch (error) {
+        alert("Rider Action Failed: " + error.message);
+    }
   };
 
   return (
