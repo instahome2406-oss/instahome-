@@ -25,7 +25,6 @@ const User = mongoose.model('User', new mongoose.Schema({
     phone: String,
     verificationCode: String,
     isVerified: { type: Boolean, default: false },
-    deviceId: String, 
     name: String, address: String
 }));
 
@@ -38,24 +37,18 @@ const Order = mongoose.model('Order', new mongoose.Schema({
     status: { type: String, default: "Pending" }, createdAt: { type: Date, default: Date.now }
 }));
 
-// --- WHATSAPP AUTH ---
+// --- WHATSAPP AUTH ROUTES ---
 
-// 1. APP REQUESTS LOGIN
+// 1. START LOGIN (Generate Code)
 app.post('/login-init', async (req, res) => {
-    const { phone, deviceId } = req.body;
+    const { phone } = req.body;
     
-    // Code: "REF-123456"
+    // Generate unique 6-digit Reference Code
     const code = "REF-" + crypto.randomInt(100000, 999999).toString();
 
     let user = await User.findOne({ phone });
-    if (!user) user = new User({ phone, deviceId });
+    if (!user) user = new User({ phone });
     
-    // Check Device Lock (Optional security layer)
-    if (user.deviceId && user.deviceId !== deviceId) {
-        return res.status(403).json({ error: "Device Mismatch" });
-    }
-    if (!user.deviceId) user.deviceId = deviceId;
-
     user.verificationCode = code;
     user.isVerified = false;
     await user.save();
@@ -63,29 +56,34 @@ app.post('/login-init', async (req, res) => {
     res.json({ 
         success: true, 
         code: code, 
-        targetNumber: "919972869722" // ⚠️ YOUR NUMBER
+        targetNumber: "919972869722" // ⚠️ YOUR PHONE NUMBER (No +)
     });
 });
 
-// 2. BOT VERIFICATION (Old Phone / Manual)
+// 2. BOT VERIFICATION (Your Phone calls this)
 app.post('/bot-verify', async (req, res) => {
     const { message, sender } = req.body;
     console.log(`🤖 Bot Msg: ${message}`);
 
-    const user = await User.findOne({ verificationCode: { $ne: null } }); // Find anyone waiting
+    // Find the user who has this code waiting
+    const user = await User.findOne({ verificationCode: { $ne: null } }); 
 
+    // Simple check: Does the message contain the code?
     if (user && message.includes(user.verificationCode)) {
         user.isVerified = true;
         user.verificationCode = null;
         await user.save();
+        
+        // ALERT THE APP TO LOG IN
         io.emit('login_success', { phone: user.phone });
+        
         res.json({ success: true });
     } else {
-        res.status(400).json({ error: "Invalid" });
+        res.status(400).json({ error: "Invalid Code" });
     }
 });
 
-// 3. MANUAL POLL CHECK
+// 3. CHECK STATUS (Backup polling)
 app.post('/check-status', async (req, res) => {
     const { phone } = req.body;
     const user = await User.findOne({ phone });
@@ -104,4 +102,4 @@ app.get('/orders', async (req, res) => { const o = await Order.find().sort({ cre
 app.get('/seed-pro', async (req, res) => { res.send("OK"); });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 WhatsApp Server on Port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 WhatsApp Engine on Port ${PORT}`));
